@@ -170,7 +170,7 @@ deploy_token_vault() {
             -- \
             set_mode \
             --user "$DEPLOYER_ADDRESS" \
-            --mode Sponsored
+            --mode '"Sponsored"'
         
         echo -e "${GREEN}✅ AA mode set to Sponsored${NC}"
     fi

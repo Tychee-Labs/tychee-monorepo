@@ -4,8 +4,8 @@
  */
 
 import * as StellarSdk from '@stellar/stellar-sdk';
-import { TycheeConfig, CardData, TokenMetadata, TransactionResult } from './types';
-import { CardTokenizer, RingCompatibleCrypto } from './crypto';
+import { TycheeConfig, CardData, TokenMetadata, TransactionResult } from '../types';
+import { CardTokenizer, RingCompatibleCrypto } from '../crypto';
 
 export class TycheeSDK {
     private config: TycheeConfig;

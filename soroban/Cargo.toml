@@ -11,8 +11,7 @@ edition = "2021"
 rust-version = "1.71.0"
 
 [workspace.dependencies]
-soroban-sdk = "20.0.0"
-soroban-auth = "20.0.0"
+soroban-sdk = "25.0.2"
 
 [profile.release]
 opt-level = "z"
