@@ -1,0 +1,39 @@
+Business Source License 1.1
+
+Licensor: Tychee Labs
+Licensed Work: Tychee Soroban Smart Contracts
+License Change Date: January 27, 2029 (3 years)
+Change License: Apache License 2.0
+
+---
+
+The Soroban smart contracts in this directory are licensed under Business Source
+License 1.1. These contracts are auditable and transparent, allowing regulators
+and security researchers to review the core tokenization logic while maintaining
+proprietary business protections.
+
+Additional Use Grant:
+
+You may use the Soroban contracts for:
+1. Internal evaluation and testing
+2. Non-production development
+3. Educational and research purposes
+4. Building on top via Stellar's X-Ray primitives
+
+Prohibited without commercial license:
+- Modifying and reselling the contracts as a competing service
+- Offering card tokenization/SaaS competing with Tychee
+- Wrapping Tychee contracts as a managed service for end-users
+
+Permitted:
+- Building on Soroban contracts via Stellar's X-Ray primitives
+- Integrating your own SaaS on top (e.g., embedding Tychee's SDK in your fintech)
+- Contributing patches (CLA required)
+- Auditing and security research
+
+---
+
+For the full license text, see the root LICENSE file.
+
+For commercial licensing inquiries, please contact: ops@tychee.store
+

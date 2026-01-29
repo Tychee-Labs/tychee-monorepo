@@ -1,0 +1,35 @@
+Business Source License 1.1
+
+Licensor: Tychee Labs
+Licensed Work: Tychee SDK
+License Change Date: January 27, 2029 (3 years)
+Change License: Apache License 2.0
+
+---
+
+The Tychee SDK in this directory is licensed under Business Source License 1.1.
+
+Additional Use Grant:
+
+You may use the SDK for:
+1. Internal evaluation and testing
+2. Non-production development
+3. Educational and research purposes
+4. Integrating into your own fintech applications (non-competing)
+
+Prohibited without commercial license:
+- Offering card tokenization/SaaS competing with Tychee
+- Wrapping Tychee as a managed service for end-users
+- Reselling the SDK as a standalone product
+
+Permitted:
+- Integrating your own SaaS on top (e.g., embedding Tychee's SDK in your fintech)
+- Contributing patches (CLA required)
+- Building applications that use Tychee's SDK for non-competing purposes
+
+---
+
+For the full license text, see the root LICENSE file.
+
+For commercial licensing inquiries, please contact: ops@tychee.store
+

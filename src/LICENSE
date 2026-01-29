@@ -1,0 +1,35 @@
+Business Source License 1.1
+
+Licensor: Tychee Labs
+Licensed Work: Tychee Frontend Application
+License Change Date: January 27, 2029 (3 years)
+Change License: Apache License 2.0
+
+---
+
+The Tychee frontend application (Next.js) in this directory is licensed under
+Business Source License 1.1.
+
+Additional Use Grant:
+
+You may use the frontend code for:
+1. Internal evaluation and testing
+2. Non-production development
+3. Educational and research purposes
+4. Reference implementation for building your own UI
+
+Prohibited without commercial license:
+- Offering card tokenization/SaaS competing with Tychee
+- Wrapping Tychee as a managed service for end-users
+- Reselling the frontend as a standalone product
+
+Permitted:
+- Using as a reference for your own implementations
+- Contributing patches (CLA required)
+- Building custom UIs that integrate with Tychee's SDK
+
+---
+
+For the full license text, see the root LICENSE file.
+
+For commercial licensing inquiries, please contact: ops@tychee.store

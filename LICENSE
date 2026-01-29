@@ -1,0 +1,88 @@
+Business Source License 1.1
+
+Licensor: Tychee Labs
+Licensed Work: Project Tychee (SDK, Rust contracts, frontend)
+License Change Date: January 27, 2029 (3 years)
+Change License: Apache License 2.0
+
+---
+
+Additional Use Grant:
+
+You may use the Licensed Work for:
+1. Internal evaluation and testing
+2. Non-production development
+3. Educational and research purposes
+
+Prohibited without commercial license:
+- Offering card tokenization/SaaS competing with Tychee
+- Wrapping Tychee as a managed service for end-users
+- Modifying and reselling the Soroban contracts
+
+Permitted:
+- Building on Soroban contracts via Stellar's X-Ray primitives
+- Integrating your own SaaS on top (e.g., embedding Tychee's SDK in your fintech)
+- Contributing patches (CLA required)
+
+---
+
+Business Source License 1.1
+
+Copyright (c) 2024 Tychee Labs. All Rights Reserved.
+
+Terms of the Business Source License (the "License")
+
+Licensor: Tychee Labs
+Licensed Work: Project Tychee
+The Licensed Work is (c) 2024 Tychee Labs.
+
+Change License: Apache License 2.0 or later
+Change Date: January 27, 2029
+
+Additional Use Grant: You may use the Licensed Work, solely as part of your own
+products and services that are not intended to compete with Tychee Labs' card
+tokenization SaaS offering, subject to the restrictions set forth below.
+
+Restrictions: The restrictions set forth in Attachment A shall apply.
+
+Licensed Work. The Licensed Work is Project Tychee, including:
+- SDK (TypeScript/JavaScript)
+- Soroban smart contracts (Rust)
+- Frontend application (Next.js)
+
+Change Date. The "Change Date" is January 27, 2029.
+
+Change License. The "Change License" is Apache License 2.0.
+
+Notice of Change License. This License will automatically change to the Change
+License on the Change Date.
+
+Non-assertion. If you make any use of the Licensed Work other than as
+expressly permitted, you agree to be bound by the terms of the Change License
+as of the Change Date, without any additional action required by you.
+
+---
+
+ATTACHMENT A
+
+Additional Use Grant
+
+You may use the Licensed Work for:
+1. Internal evaluation and testing
+2. Non-production development
+3. Educational and research purposes
+
+Prohibited without commercial license:
+- Offering card tokenization/SaaS competing with Tychee
+- Wrapping Tychee as a managed service for end-users
+- Modifying and reselling the Soroban contracts
+
+Permitted:
+- Building on Soroban contracts via Stellar's X-Ray primitives
+- Integrating your own SaaS on top (e.g., embedding Tychee's SDK in your fintech)
+- Contributing patches (CLA required)
+
+---
+
+For commercial licensing inquiries, please contact: ops@tychee.store
+

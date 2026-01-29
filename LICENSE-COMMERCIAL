@@ -1,0 +1,29 @@
+Commercial License for Project Tychee
+
+For traditional banks, fintech companies, and enterprises that wish to deploy
+Tychee in-house (not as SaaS) or need additional commercial rights beyond the
+Business Source License 1.1, Tychee Labs offers Commercial Licenses.
+
+Commercial License Benefits:
+- Deploy Tychee in production environments without BSL restrictions
+- Use Tychee as part of your own commercial offerings
+- Receive priority support and updates
+- Custom licensing terms based on transaction volume and use case
+
+Pricing:
+Commercial licenses are priced based on:
+- Transaction volume
+- Number of users/cards tokenized
+- Deployment model (on-premise vs. cloud)
+- Support and SLA requirements
+
+For commercial licensing inquiries, please contact:
+Email: ops@tychee.store
+
+Note: Commercial licenses are available for organizations that need to deploy
+Tychee beyond the scope permitted by the BSL 1.1 license. This is particularly
+useful for:
+- Traditional banks deploying card tokenization infrastructure
+- Fintech companies building on Tychee's SDK
+- Enterprises requiring production deployments with full commercial rights
+

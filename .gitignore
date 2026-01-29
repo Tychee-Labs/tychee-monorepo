@@ -1,0 +1,30 @@
+node_modules
+.next
+dist
+build
+.env.local
+.env.*.local
+.vercel
+*.log
+.DS_Store
+
+# Rust
+target/
+Cargo.lock
+**/*.rs.bk
+
+# Testing
+coverage/
+.nyc_output/
+playwright-report/
+test-results/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Soroban
+.soroban/
+*.wasm
