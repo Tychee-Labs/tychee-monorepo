@@ -63,6 +63,30 @@ export interface TransactionResult {
 }
 
 /**
+ * External Signer for wallet extensions
+ * Allows using wallet extensions (Freighter, Lobstr, etc.) for signing
+ */
+export type ExternalSigner = (xdr: string, opts?: {
+    networkPassphrase?: string;
+    address?: string;
+}) => Promise<{
+    signedTxXdr: string;
+    signerAddress?: string;
+}>;
+
+/**
+ * External Message Signer for key derivation
+ * Used to derive encryption key from a signed message
+ */
+export type MessageSigner = (message: string, opts?: {
+    networkPassphrase?: string;
+    address?: string;
+}) => Promise<{
+    signedMessage: string;
+    signerAddress?: string;
+}>;
+
+/**
  * ZK Proof Data
  */
 export interface ZKProof {

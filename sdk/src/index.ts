@@ -9,6 +9,8 @@ export type {
     CardData,
     TokenMetadata,
     TransactionResult,
+    ExternalSigner,
+    MessageSigner,
     ZKProof
 } from './types';
 
