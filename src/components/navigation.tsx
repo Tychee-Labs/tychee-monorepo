@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CreditCard, TrendingUp, Gift, Store, Ticket, Users, Wallet } from "lucide-react";
+import { CreditCard, TrendingUp, Gift, Store, Ticket, Users, Wallet, LogOut, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/lib/auth-context";
 
-const navigation = [
+const navItems = [
     { name: "Cards", href: "/cards", icon: CreditCard },
     { name: "Spends", href: "/spends", icon: TrendingUp },
     { name: "Rewards", href: "/rewards", icon: Gift },
@@ -16,6 +17,7 @@ const navigation = [
 
 export function Navigation() {
     const pathname = usePathname();
+    const { user, isLoading, login, logout, walletAddress } = useAuth();
 
     return (
         <nav className="sticky top-0 z-40 w-full border-b border-border/40 glass backdrop-blur-lg">
@@ -29,7 +31,7 @@ export function Navigation() {
                     </Link>
 
                     <div className="hidden md:flex items-center space-x-1">
-                        {navigation.map((item) => {
+                        {navItems.map((item) => {
                             const Icon = item.icon;
                             const isActive = pathname === item.href;
                             return (
@@ -50,15 +52,42 @@ export function Navigation() {
                         })}
                     </div>
 
-                    <button className="px-4 py-2 bg-gradient-to-r from-primary to-accent rounded-full text-white font-medium hover:shadow-glow transition-all flex items-center gap-2">
-                        <Wallet className="w-4 h-4" />
-                        Connect Wallet
-                    </button>
+                    {/* Wallet Button */}
+                    {isLoading ? (
+                        <div className="px-4 py-2 rounded-full bg-muted flex items-center gap-2">
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            <span className="text-sm">Loading...</span>
+                        </div>
+                    ) : user ? (
+                        <div className="flex items-center gap-2">
+                            <div className="hidden sm:flex flex-col items-end text-right">
+                                <span className="text-xs text-muted-foreground">Connected</span>
+                                <span className="text-xs font-mono">
+                                    {walletAddress?.slice(0, 6)}...{walletAddress?.slice(-4)}
+                                </span>
+                            </div>
+                            <button
+                                onClick={logout}
+                                className="p-2 rounded-full bg-muted hover:bg-destructive/20 transition-colors"
+                                title="Disconnect"
+                            >
+                                <LogOut className="w-4 h-4" />
+                            </button>
+                        </div>
+                    ) : (
+                        <button
+                            onClick={login}
+                            className="px-4 py-2 bg-gradient-to-r from-primary to-accent rounded-full text-white font-medium hover:shadow-glow transition-all flex items-center gap-2"
+                        >
+                            <Wallet className="w-4 h-4" />
+                            Connect Wallet
+                        </button>
+                    )}
                 </div>
 
                 {/* Mobile Navigation */}
                 <div className="md:hidden flex overflow-x-auto py-2 gap-2 no-scrollbar">
-                    {navigation.map((item) => {
+                    {navItems.map((item) => {
                         const Icon = item.icon;
                         const isActive = pathname === item.href;
                         return (

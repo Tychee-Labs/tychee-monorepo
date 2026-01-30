@@ -1,12 +1,25 @@
 "use client";
 
-import { useState } from "react";
-import { Gift, Star, Zap, Trophy, ArrowRight } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import { Gift, Star, Zap, Trophy, ArrowRight, Loader2, LogIn } from "lucide-react";
 import { formatNumber } from "@/lib/utils";
+import { useAuth } from "@/lib/auth-context";
+
+interface RewardItem {
+    id: string;
+    title: string;
+    points: number;
+    type: string;
+}
 
 export default function RewardsPage() {
-    const [userPoints] = useState(12450);
-    const [userTier] = useState("gold");
+    const { user, isLoading: authLoading, login } = useAuth();
+    const [userPoints, setUserPoints] = useState(0);
+    const [userTier, setUserTier] = useState("bronze");
+    const [isLoading, setIsLoading] = useState(false);
+    const [isRedeeming, setIsRedeeming] = useState<string | null>(null);
+    const [error, setError] = useState<string | null>(null);
+    const [success, setSuccess] = useState<string | null>(null);
 
     const tiers = [
         { name: "Bronze", min: 0, color: "from-orange-600 to-orange-400" },
@@ -15,12 +28,113 @@ export default function RewardsPage() {
         { name: "Platinum", min: 25000, color: "from-purple-500 to-pink-400" },
     ];
 
-    const rewards = [
-        { id: "1", title: "₹500 Off on Dining", points: 5000, icon: Gift, type: "voucher" },
-        { id: "2", title: "2x Points Weekend", points: 2000, icon: Zap, type: "boost" },
-        { id: "3", title: "Free Movie Ticket", points: 8000, icon: Star, type: "voucher" },
-        { id: "4", title: "Exclusive Gold Lounge", points: 15000, icon: Trophy, type: "experience" },
+    const rewards: RewardItem[] = [
+        { id: "1", title: "₹500 Off on Dining", points: 5000, type: "voucher" },
+        { id: "2", title: "2x Points Weekend", points: 2000, type: "boost" },
+        { id: "3", title: "Free Movie Ticket", points: 8000, type: "voucher" },
+        { id: "4", title: "Exclusive Gold Lounge", points: 15000, type: "experience" },
     ];
+
+    // Fetch points balance
+    const fetchPoints = useCallback(async () => {
+        if (!user?.id) return;
+
+        setIsLoading(true);
+        try {
+            const response = await fetch(`/api/points?userId=${user.id}`);
+            const data = await response.json();
+
+            if (data.balance) {
+                setUserPoints(data.balance.total_points || 0);
+                setUserTier(data.balance.tier || 'bronze');
+            }
+        } catch (err) {
+            console.error('Failed to fetch points:', err);
+        } finally {
+            setIsLoading(false);
+        }
+    }, [user?.id]);
+
+    useEffect(() => {
+        if (user?.id) {
+            fetchPoints();
+        }
+    }, [user?.id, fetchPoints]);
+
+    // Calculate points to next tier
+    const getPointsToNextTier = () => {
+        const currentTierIndex = tiers.findIndex(t => t.name.toLowerCase() === userTier);
+        if (currentTierIndex < tiers.length - 1) {
+            const nextTier = tiers[currentTierIndex + 1];
+            return nextTier.min - userPoints;
+        }
+        return 0;
+    };
+
+    // Redeem reward
+    const handleRedeem = async (reward: RewardItem) => {
+        if (!user?.id || userPoints < reward.points) return;
+
+        setIsRedeeming(reward.id);
+        setError(null);
+        setSuccess(null);
+
+        try {
+            // Deduct points
+            const response = await fetch('/api/points', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    userId: user.id,
+                    points: -reward.points,
+                    txType: 'redeem',
+                    description: `Redeemed: ${reward.title}`
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to redeem reward');
+            }
+
+            setSuccess(`Successfully redeemed "${reward.title}"!`);
+            fetchPoints();
+
+        } catch (err: any) {
+            setError(err.message);
+        } finally {
+            setIsRedeeming(null);
+        }
+    };
+
+    // If not logged in
+    if (!user && !authLoading) {
+        return (
+            <div className="space-y-8">
+                <div className="text-center py-16">
+                    <Gift className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
+                    <h2 className="text-2xl font-bold mb-4">Connect to View Rewards</h2>
+                    <p className="text-muted-foreground mb-8 max-w-md mx-auto">
+                        Create a wallet to start earning and redeeming rewards.
+                    </p>
+                    <button
+                        onClick={login}
+                        className="px-8 py-4 bg-gradient-to-r from-primary to-accent rounded-full text-white font-semibold hover:shadow-glow transition-all flex items-center gap-2 mx-auto"
+                    >
+                        <LogIn className="w-5 h-5" />
+                        Connect Wallet
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
+    if (authLoading || isLoading) {
+        return (
+            <div className="flex items-center justify-center py-16">
+                <Loader2 className="w-8 h-8 animate-spin text-primary" />
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-8">
@@ -32,7 +146,19 @@ export default function RewardsPage() {
                 </p>
             </div>
 
-            {/* Points Balance Card (Premium gradient design) */}
+            {/* Status Messages */}
+            {error && (
+                <div className="p-4 bg-destructive/20 border border-destructive rounded-lg text-destructive">
+                    {error}
+                </div>
+            )}
+            {success && (
+                <div className="p-4 bg-green-500/20 border border-green-500 rounded-lg text-green-400">
+                    {success}
+                </div>
+            )}
+
+            {/* Points Balance Card */}
             <div className="relative overflow-hidden rounded-3xl p-8 bg-gradient-to-br from-purple-600 via-pink-500 to-orange-500">
                 <div className="relative z-10">
                     <div className="text-white/80 text-sm font-medium mb-2">Your Balance</div>
@@ -41,9 +167,11 @@ export default function RewardsPage() {
                         <div className={`px-4 py-2 rounded-full bg-gradient-to-r ${tiers.find(t => t.name.toLowerCase() === userTier)?.color} text-white font-bold text-sm`}>
                             {userTier.toUpperCase()} TIER
                         </div>
-                        <div className="text-white/80 text-sm">
-                            5,550 points to Platinum
-                        </div>
+                        {getPointsToNextTier() > 0 && (
+                            <div className="text-white/80 text-sm">
+                                {formatNumber(getPointsToNextTier())} points to {tiers[tiers.findIndex(t => t.name.toLowerCase() === userTier) + 1]?.name}
+                            </div>
+                        )}
                     </div>
                 </div>
 
@@ -91,18 +219,18 @@ export default function RewardsPage() {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {rewards.map((reward) => {
-                        const Icon = reward.icon;
                         const canRedeem = userPoints >= reward.points;
+                        const isThisRedeeming = isRedeeming === reward.id;
 
                         return (
                             <div key={reward.id} className="premium-card">
                                 <div className="flex items-start justify-between mb-4">
                                     <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center">
-                                        <Icon className="w-7 h-7 text-white" />
+                                        <Gift className="w-7 h-7 text-white" />
                                     </div>
                                     <div className={`px-3 py-1 rounded-full text-xs font-medium ${canRedeem ? 'bg-green-500/20 text-green-400' : 'bg-muted text-muted-foreground'
                                         }`}>
-                                        {reward.points} pts
+                                        {formatNumber(reward.points)} pts
                                     </div>
                                 </div>
 
@@ -110,14 +238,21 @@ export default function RewardsPage() {
                                 <p className="text-sm text-muted-foreground mb-4 capitalize">{reward.type}</p>
 
                                 <button
-                                    disabled={!canRedeem}
+                                    onClick={() => handleRedeem(reward)}
+                                    disabled={!canRedeem || isThisRedeeming}
                                     className={`w-full px-4 py-2 rounded-lg font-medium flex items-center justify-center gap-2 transition-all ${canRedeem
                                         ? 'bg-gradient-to-r from-primary to-accent text-white hover:shadow-glow'
                                         : 'bg-muted text-muted-foreground cursor-not-allowed'
                                         }`}
                                 >
-                                    Redeem
-                                    <ArrowRight className="w-4 h-4" />
+                                    {isThisRedeeming ? (
+                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                    ) : (
+                                        <>
+                                            Redeem
+                                            <ArrowRight className="w-4 h-4" />
+                                        </>
+                                    )}
                                 </button>
                             </div>
                         );
