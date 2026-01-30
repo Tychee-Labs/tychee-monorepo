@@ -30,7 +30,7 @@ export default function CardsPage() {
                 <div>
                     <h1 className="text-4xl font-bold gradient-text">Cards Hub</h1>
                     <p className="text-muted-foreground mt-2">
-                        Securely tokenize your cards on Stellar blockchain with RBI compliance
+                        Securely tokenize your cards on Stellar blockchain with regulatory compliance
                     </p>
                 </div>
                 <button

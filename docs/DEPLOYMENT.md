@@ -599,7 +599,6 @@ stellar contract invoke \
 ### Get Help
 
 - 📖 [Stellar Developer Docs](https://developers.stellar.org/)
-- 📖 [Soroban Documentation](https://soroban.stellar.org/)
 - 💬 [Stellar Discord](https://discord.gg/stellar)
 - 📧 Contact: ops@tychee.store
 

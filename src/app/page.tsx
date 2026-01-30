@@ -39,7 +39,7 @@ export default function HomePage() {
                         </div>
                         <h3 className="text-2xl font-bold mb-2">Cards Hub</h3>
                         <p className="text-muted-foreground">
-                            Securely tokenize your debit/credit cards on-chain with RBI compliance
+                            Securely tokenize your debit/credit cards on-chain with regulatory compliance
                         </p>
                         <div className="mt-4 text-sm text-accent">
                             Manage Cards →
