@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { Navigation } from "@/components/navigation";
 import { Toaster } from "@/components/ui/toaster";
+import { WalletProvider } from "@/context/WalletContext";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -20,13 +21,15 @@ export default function RootLayout({
     return (
         <html lang="en" className="dark">
             <body className={inter.className}>
-                <div className="min-h-screen bg-background">
-                    <Navigation />
-                    <main className="container mx-auto px-4 py-8">
-                        {children}
-                    </main>
-                    <Toaster />
-                </div>
+                <WalletProvider>
+                    <div className="min-h-screen bg-background">
+                        <Navigation />
+                        <main className="container mx-auto px-4 py-8">
+                            {children}
+                        </main>
+                        <Toaster />
+                    </div>
+                </WalletProvider>
             </body>
         </html>
     );

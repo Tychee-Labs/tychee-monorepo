@@ -1,12 +1,33 @@
 "use client";
 
-import { useState } from "react";
-import { Gift, Star, Zap, Trophy, ArrowRight } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Gift, Star, Zap, Trophy, ArrowRight, AlertCircle, Loader2, CheckCircle } from "lucide-react";
 import { formatNumber } from "@/lib/utils";
+import { useWallet } from "@/context/WalletContext";
+
+interface Reward {
+    id: string;
+    title: string;
+    description: string;
+    points: number;
+    icon: typeof Gift;
+    type: "voucher" | "boost" | "experience";
+}
+
+interface RedeemedReward {
+    id: string;
+    rewardId: string;
+    title: string;
+    redeemedAt: string;
+    points: number;
+}
 
 export default function RewardsPage() {
-    const [userPoints] = useState(12450);
-    const [userTier] = useState("gold");
+    const { publicKey, isConnected } = useWallet();
+    const [userPoints, setUserPoints] = useState(0);
+    const [redeemedRewards, setRedeemedRewards] = useState<RedeemedReward[]>([]);
+    const [isRedeeming, setIsRedeeming] = useState<string | null>(null);
+    const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
     const tiers = [
         { name: "Bronze", min: 0, color: "from-orange-600 to-orange-400" },
@@ -15,12 +36,79 @@ export default function RewardsPage() {
         { name: "Platinum", min: 25000, color: "from-purple-500 to-pink-400" },
     ];
 
-    const rewards = [
-        { id: "1", title: "₹500 Off on Dining", points: 5000, icon: Gift, type: "voucher" },
-        { id: "2", title: "2x Points Weekend", points: 2000, icon: Zap, type: "boost" },
-        { id: "3", title: "Free Movie Ticket", points: 8000, icon: Star, type: "voucher" },
-        { id: "4", title: "Exclusive Gold Lounge", points: 15000, icon: Trophy, type: "experience" },
+    const rewards: Reward[] = [
+        { id: "1", title: "₹500 Off on Dining", description: "Valid at partner restaurants", points: 500, icon: Gift, type: "voucher" },
+        { id: "2", title: "2x Points Weekend", description: "Earn double on all transactions", points: 200, icon: Zap, type: "boost" },
+        { id: "3", title: "Free Movie Ticket", description: "Any cinema, any movie", points: 800, icon: Star, type: "voucher" },
+        { id: "4", title: "Exclusive Lounge Access", description: "Airport lounge one-time pass", points: 1500, icon: Trophy, type: "experience" },
     ];
+
+    // Load user data from localStorage
+    useEffect(() => {
+        if (publicKey) {
+            const savedPoints = localStorage.getItem(`tychee_points_${publicKey}`);
+            const savedRedeemed = localStorage.getItem(`tychee_redeemed_${publicKey}`);
+
+            // Initialize with bonus points for new users
+            if (!savedPoints) {
+                const initialPoints = 1000; // Welcome bonus
+                setUserPoints(initialPoints);
+                localStorage.setItem(`tychee_points_${publicKey}`, String(initialPoints));
+            } else {
+                setUserPoints(parseInt(savedPoints));
+            }
+
+            if (savedRedeemed) {
+                setRedeemedRewards(JSON.parse(savedRedeemed));
+            }
+        }
+    }, [publicKey]);
+
+    const getCurrentTier = () => {
+        for (let i = tiers.length - 1; i >= 0; i--) {
+            if (userPoints >= tiers[i].min) return tiers[i];
+        }
+        return tiers[0];
+    };
+
+    const getNextTier = () => {
+        const current = getCurrentTier();
+        const currentIndex = tiers.findIndex(t => t.name === current.name);
+        return currentIndex < tiers.length - 1 ? tiers[currentIndex + 1] : null;
+    };
+
+    const handleRedeem = async (reward: Reward) => {
+        if (!publicKey || userPoints < reward.points) return;
+
+        setIsRedeeming(reward.id);
+
+        // Simulate processing
+        await new Promise(resolve => setTimeout(resolve, 1500));
+
+        const newPoints = userPoints - reward.points;
+        setUserPoints(newPoints);
+        localStorage.setItem(`tychee_points_${publicKey}`, String(newPoints));
+
+        const newRedeemed: RedeemedReward = {
+            id: Date.now().toString(),
+            rewardId: reward.id,
+            title: reward.title,
+            redeemedAt: new Date().toISOString(),
+            points: reward.points,
+        };
+
+        const updatedRedeemed = [...redeemedRewards, newRedeemed];
+        setRedeemedRewards(updatedRedeemed);
+        localStorage.setItem(`tychee_redeemed_${publicKey}`, JSON.stringify(updatedRedeemed));
+
+        setSuccessMessage(`Successfully redeemed "${reward.title}"!`);
+        setTimeout(() => setSuccessMessage(null), 3000);
+        setIsRedeeming(null);
+    };
+
+    const currentTier = getCurrentTier();
+    const nextTier = getNextTier();
+    const pointsToNextTier = nextTier ? nextTier.min - userPoints : 0;
 
     return (
         <div className="space-y-8">
@@ -32,22 +120,47 @@ export default function RewardsPage() {
                 </p>
             </div>
 
-            {/* Points Balance Card (Premium gradient design) */}
+            {/* Wallet Warning */}
+            {!isConnected && (
+                <div className="glass-card border-yellow-500/30 bg-yellow-500/10">
+                    <div className="flex items-start gap-4">
+                        <AlertCircle className="w-6 h-6 text-yellow-500 flex-shrink-0" />
+                        <div>
+                            <h3 className="font-semibold text-yellow-400">Connect Wallet</h3>
+                            <p className="text-sm text-muted-foreground mt-1">
+                                Connect your Stellar wallet to view and redeem rewards.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Success Message */}
+            {successMessage && (
+                <div className="glass-card border-green-500/30 bg-green-500/10">
+                    <div className="flex items-center gap-3">
+                        <CheckCircle className="w-5 h-5 text-green-400" />
+                        <span className="text-green-400 font-medium">{successMessage}</span>
+                    </div>
+                </div>
+            )}
+
+            {/* Points Balance Card */}
             <div className="relative overflow-hidden rounded-3xl p-8 bg-gradient-to-br from-purple-600 via-pink-500 to-orange-500">
                 <div className="relative z-10">
                     <div className="text-white/80 text-sm font-medium mb-2">Your Balance</div>
                     <div className="text-white text-6xl font-bold mb-4">{formatNumber(userPoints)}</div>
                     <div className="flex items-center gap-2">
-                        <div className={`px-4 py-2 rounded-full bg-gradient-to-r ${tiers.find(t => t.name.toLowerCase() === userTier)?.color} text-white font-bold text-sm`}>
-                            {userTier.toUpperCase()} TIER
+                        <div className={`px-4 py-2 rounded-full bg-gradient-to-r ${currentTier.color} text-white font-bold text-sm`}>
+                            {currentTier.name.toUpperCase()} TIER
                         </div>
-                        <div className="text-white/80 text-sm">
-                            5,550 points to Platinum
-                        </div>
+                        {nextTier && (
+                            <div className="text-white/80 text-sm">
+                                {formatNumber(pointsToNextTier)} points to {nextTier.name}
+                            </div>
+                        )}
                     </div>
                 </div>
-
-                {/* Decorative background */}
                 <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl" />
                 <div className="absolute bottom-0 left-0 w-48 h-48 bg-black/10 rounded-full blur-2xl" />
             </div>
@@ -58,7 +171,7 @@ export default function RewardsPage() {
                 <div className="space-y-6">
                     {tiers.map((tier, idx) => {
                         const isUnlocked = userPoints >= tier.min;
-                        const isCurrent = tier.name.toLowerCase() === userTier;
+                        const isCurrent = tier.name === currentTier.name;
                         return (
                             <div key={tier.name} className="flex items-center gap-4">
                                 <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold ${isUnlocked
@@ -92,7 +205,8 @@ export default function RewardsPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {rewards.map((reward) => {
                         const Icon = reward.icon;
-                        const canRedeem = userPoints >= reward.points;
+                        const canRedeem = isConnected && userPoints >= reward.points;
+                        const isLoading = isRedeeming === reward.id;
 
                         return (
                             <div key={reward.id} className="premium-card">
@@ -106,18 +220,28 @@ export default function RewardsPage() {
                                     </div>
                                 </div>
 
-                                <h3 className="text-lg font-bold mb-2">{reward.title}</h3>
-                                <p className="text-sm text-muted-foreground mb-4 capitalize">{reward.type}</p>
+                                <h3 className="text-lg font-bold mb-1">{reward.title}</h3>
+                                <p className="text-sm text-muted-foreground mb-4">{reward.description}</p>
 
                                 <button
-                                    disabled={!canRedeem}
-                                    className={`w-full px-4 py-2 rounded-lg font-medium flex items-center justify-center gap-2 transition-all ${canRedeem
+                                    onClick={() => handleRedeem(reward)}
+                                    disabled={!canRedeem || isLoading}
+                                    className={`w-full px-4 py-2 rounded-lg font-medium flex items-center justify-center gap-2 transition-all ${canRedeem && !isLoading
                                         ? 'bg-gradient-to-r from-primary to-accent text-white hover:shadow-glow'
                                         : 'bg-muted text-muted-foreground cursor-not-allowed'
                                         }`}
                                 >
-                                    Redeem
-                                    <ArrowRight className="w-4 h-4" />
+                                    {isLoading ? (
+                                        <>
+                                            <Loader2 className="w-4 h-4 animate-spin" />
+                                            Redeeming...
+                                        </>
+                                    ) : (
+                                        <>
+                                            Redeem
+                                            <ArrowRight className="w-4 h-4" />
+                                        </>
+                                    )}
                                 </button>
                             </div>
                         );
@@ -125,18 +249,35 @@ export default function RewardsPage() {
                 </div>
             </div>
 
+            {/* Recent Redemptions */}
+            {redeemedRewards.length > 0 && (
+                <div className="glass-card">
+                    <h3 className="text-xl font-bold mb-4">Recent Redemptions</h3>
+                    <div className="space-y-3">
+                        {redeemedRewards.slice(-5).reverse().map((redeemed) => (
+                            <div key={redeemed.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                                <div>
+                                    <div className="font-medium">{redeemed.title}</div>
+                                    <div className="text-xs text-muted-foreground">
+                                        {new Date(redeemed.redeemedAt).toLocaleDateString()}
+                                    </div>
+                                </div>
+                                <div className="text-sm text-red-400">-{redeemed.points} pts</div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
             {/* Earn More Section */}
             <div className="glass-card border-accent/30">
                 <div className="flex items-start gap-4">
                     <Zap className="w-12 h-12 text-accent flex-shrink-0" />
                     <div>
-                        <h3 className="font-bold text-lg mb-2">Earn 2x Points This Weekend!</h3>
+                        <h3 className="font-bold text-lg mb-2">Earn Points by Tokenizing Cards!</h3>
                         <p className="text-sm text-muted-foreground">
-                            Use your tokenized cards for any transaction from Friday to Sunday and earn double rewards points.
+                            Add your cards to Tychee and earn 100 bonus points per card. Use them for transactions to earn even more!
                         </p>
-                        <button className="mt-4 px-6 py-2 bg-accent rounded-full text-white font-medium hover:shadow-glow-green transition-all">
-                            Learn More
-                        </button>
                     </div>
                 </div>
             </div>

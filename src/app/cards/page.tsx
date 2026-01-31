@@ -1,7 +1,13 @@
 "use client";
 
-import { useState } from "react";
-import { Plus, CreditCard as CreditCardIcon, Shield, Eye, EyeOff, Trash2 } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Plus, CreditCard as CreditCardIcon, Shield, Trash2, Loader2, AlertCircle, KeyRound, Lock, ExternalLink } from "lucide-react";
+import { useWallet } from "@/context/WalletContext";
+
+// Import browser-compatible SDK wrapper (mirrors @tychee/sdk API)
+import { CardTokenizer, ClientCrypto, type CardData } from "@/lib/tychee-client";
+// Import Soroban client for on-chain storage
+import { storeCardOnChain, type StoreTokenParams } from "@/lib/soroban-client";
 
 interface StoredCard {
     id: string;
@@ -9,19 +15,244 @@ interface StoredCard {
     network: string;
     status: string;
     expiresAt: string;
+    tokenHash?: string;
+    signedAt?: string;
+    encryptedSize?: number;
+    txHash?: string;
+}
+
+interface CardFormData {
+    cardNumber: string;
+    expiry: string;
+    cvv: string;
+    cardholderName: string;
 }
 
 export default function CardsPage() {
-    const [cards, setCards] = useState<StoredCard[]>([
-        {
-            id: "1",
-            last4: "4242",
-            network: "visa",
-            status: "active",
-            expiresAt: "12/26",
-        },
-    ]);
+    const { publicKey, isConnected, deriveEncryptionKey, kit } = useWallet();
+    const [cards, setCards] = useState<StoredCard[]>([]);
     const [showAddCard, setShowAddCard] = useState(false);
+    const [isLoading, setIsLoading] = useState(false);
+    const [loadingStep, setLoadingStep] = useState<string>("");
+    const [error, setError] = useState<string | null>(null);
+    const [formData, setFormData] = useState<CardFormData>({
+        cardNumber: "",
+        expiry: "",
+        cvv: "",
+        cardholderName: "",
+    });
+
+    // Load saved cards from localStorage on mount
+    useEffect(() => {
+        if (publicKey) {
+            const savedCards = localStorage.getItem(`tychee_cards_${publicKey}`);
+            if (savedCards) {
+                setCards(JSON.parse(savedCards));
+            }
+        }
+    }, [publicKey]);
+
+    // Format card number with spaces (SDK-style)
+    const formatCardNumber = (value: string) => {
+        const v = value.replace(/\s+/g, "").replace(/[^0-9]/gi, "");
+        const matches = v.match(/\d{4,16}/g);
+        const match = (matches && matches[0]) || "";
+        const parts = [];
+        for (let i = 0, len = match.length; i < len; i += 4) {
+            parts.push(match.substring(i, i + 4));
+        }
+        return parts.length ? parts.join(" ") : value;
+    };
+
+    // Format expiry date
+    const formatExpiry = (value: string) => {
+        const v = value.replace(/\s+/g, "").replace(/[^0-9]/gi, "");
+        if (v.length >= 2) {
+            return v.substring(0, 2) + "/" + v.substring(2, 4);
+        }
+        return v;
+    };
+
+    const handleInputChange = (field: keyof CardFormData, value: string) => {
+        let formattedValue = value;
+        if (field === "cardNumber") {
+            formattedValue = formatCardNumber(value);
+        } else if (field === "expiry") {
+            formattedValue = formatExpiry(value);
+        } else if (field === "cvv") {
+            formattedValue = value.replace(/[^0-9]/g, "").substring(0, 4);
+        }
+        setFormData(prev => ({ ...prev, [field]: formattedValue }));
+    };
+
+    const handleTokenizeCard = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setError(null);
+
+        if (!isConnected || !publicKey) {
+            setError("Please connect your wallet first");
+            return;
+        }
+
+        const cleanedCardNumber = formData.cardNumber.replace(/\s/g, "");
+
+        // Step 1: Validate card using SDK's CardTokenizer
+        setLoadingStep("Validating card...");
+        if (!CardTokenizer.validateCardNumber(cleanedCardNumber)) {
+            setError("Invalid card number (failed Luhn check)");
+            return;
+        }
+
+        // Validate expiry
+        const [month, year] = formData.expiry.split("/");
+        if (!month || !year || parseInt(month) < 1 || parseInt(month) > 12) {
+            setError("Invalid expiry date");
+            return;
+        }
+
+        // Validate CVV
+        if (formData.cvv.length < 3) {
+            setError("Invalid CVV");
+            return;
+        }
+
+        setIsLoading(true);
+
+        try {
+            // Step 2: Detect card network using SDK
+            setLoadingStep("Detecting card network...");
+            const network = CardTokenizer.detectCardNetwork(cleanedCardNumber) as CardData["network"];
+
+            // Step 3: Create CardData object (SDK type)
+            const cardData: CardData = {
+                pan: cleanedCardNumber,
+                cvv: formData.cvv,
+                expiryMonth: month,
+                expiryYear: year,
+                cardholderName: formData.cardholderName,
+                network: network,
+            };
+
+            // Step 4: Derive user-owned encryption key from wallet
+            setLoadingStep("Deriving encryption key from wallet...");
+            const encryptionKey = await deriveEncryptionKey();
+
+            // Step 5: Encrypt card using browser-compatible CardTokenizer
+            setLoadingStep("Encrypting card data (AES-256-GCM)...");
+            const { encryptedPayload, tokenHash, last4Digits } = await CardTokenizer.encryptCard(
+                cardData,
+                encryptionKey
+            );
+
+            // Calculate expiration timestamp
+            const expiryDate = new Date(
+                parseInt("20" + year),
+                parseInt(month) - 1,
+                1
+            );
+            expiryDate.setMonth(expiryDate.getMonth() + 1);
+            const expiresAt = Math.floor(expiryDate.getTime() / 1000);
+
+            // Step 6: Store on-chain with wallet signature
+            // This WILL prompt the wallet for approval
+            let txHash: string | undefined;
+
+            if (kit) {
+                setLoadingStep("Requesting wallet signature for on-chain storage...");
+
+                const storeParams: StoreTokenParams = {
+                    publicKey,
+                    encryptedPayload,
+                    tokenHash,
+                    last4Digits,
+                    network,
+                    expiresAt,
+                };
+
+                try {
+                    const result = await storeCardOnChain(kit, storeParams);
+
+                    if (!result.success) {
+                        if (result.error?.includes("cancelled") || result.error?.includes("rejected")) {
+                            setError("Transaction cancelled. Wallet signature required to store card on-chain.");
+                            return;
+                        }
+                        // If on-chain storage fails, fall back to local storage with warning
+                        console.warn("On-chain storage failed, using local storage:", result.error);
+                    } else {
+                        txHash = result.txHash;
+                        console.log("Card stored on-chain! TX:", txHash);
+                    }
+                } catch (chainError: any) {
+                    console.warn("On-chain storage error, using local storage:", chainError.message);
+                }
+            }
+
+            // Step 7: Create token metadata for storage
+            setLoadingStep("Saving card metadata...");
+            const newCard: StoredCard = {
+                id: tokenHash.substring(0, 16),
+                last4: last4Digits,
+                network: network,
+                status: "active",
+                expiresAt: formData.expiry,
+                tokenHash: tokenHash,
+                signedAt: new Date().toISOString(),
+                encryptedSize: encryptedPayload.length,
+                txHash: txHash,
+            };
+
+            // Save to state and localStorage (backup/cache)
+            const updatedCards = [...cards, newCard];
+            setCards(updatedCards);
+            localStorage.setItem(`tychee_cards_${publicKey}`, JSON.stringify(updatedCards));
+
+            // Log success
+            console.log("Card tokenized:", {
+                tokenId: newCard.id,
+                maskedPan: CardTokenizer.maskCardNumber(cleanedCardNumber),
+                network: network,
+                encryptedSize: encryptedPayload.length,
+                onChain: !!txHash,
+                txHash: txHash,
+            });
+
+            // Reset form and close modal
+            setFormData({ cardNumber: "", expiry: "", cvv: "", cardholderName: "" });
+            setShowAddCard(false);
+            setLoadingStep("");
+
+        } catch (err: any) {
+            console.error("Tokenization error:", err);
+            setError(err.message || "Failed to tokenize card");
+        } finally {
+            setIsLoading(false);
+            setLoadingStep("");
+        }
+    };
+
+    const handleRevokeCard = (cardId: string) => {
+        if (!publicKey) return;
+
+        const updatedCards = cards.filter(card => card.id !== cardId);
+        setCards(updatedCards);
+        localStorage.setItem(`tychee_cards_${publicKey}`, JSON.stringify(updatedCards));
+    };
+
+    const getNetworkColor = (network: string) => {
+        switch (network) {
+            case "visa": return "from-blue-600 to-blue-800";
+            case "mastercard": return "from-orange-500 to-red-600";
+            case "rupay": return "from-green-500 to-teal-600";
+            case "amex": return "from-gray-600 to-gray-800";
+            default: return "from-purple-600 to-pink-600";
+        }
+    };
+
+    // Get current card network for display while typing
+    const currentNetwork = formData.cardNumber.length > 0
+        ? CardTokenizer.detectCardNetwork(formData.cardNumber.replace(/\s/g, ""))
+        : null;
 
     return (
         <div className="space-y-8">
@@ -30,28 +261,46 @@ export default function CardsPage() {
                 <div>
                     <h1 className="text-4xl font-bold gradient-text">Cards Hub</h1>
                     <p className="text-muted-foreground mt-2">
-                        Securely tokenize your cards on Stellar blockchain with regulatory compliance
+                        Securely tokenize your cards on Stellar blockchain with CoFT compliance
                     </p>
                 </div>
                 <button
                     onClick={() => setShowAddCard(true)}
-                    className="px-6 py-3 bg-gradient-to-r from-primary to-accent rounded-full text-white font-medium hover:shadow-glow transition-all flex items-center gap-2"
+                    disabled={!isConnected}
+                    className="px-6 py-3 bg-gradient-to-r from-primary to-accent rounded-full text-white font-medium hover:shadow-glow transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                     <Plus className="w-5 h-5" />
                     Add Card
                 </button>
             </div>
 
-            {/* Security Banner (Nielsen: Help & Documentation) */}
+            {/* Wallet Connection Warning */}
+            {!isConnected && (
+                <div className="glass-card border-yellow-500/30 bg-yellow-500/10">
+                    <div className="flex items-start gap-4">
+                        <div className="w-12 h-12 rounded-full bg-yellow-500/20 flex items-center justify-center flex-shrink-0">
+                            <AlertCircle className="w-6 h-6 text-yellow-500" />
+                        </div>
+                        <div>
+                            <h3 className="font-semibold text-lg text-yellow-400">Wallet Not Connected</h3>
+                            <p className="text-sm text-muted-foreground mt-1">
+                                Please connect your Stellar wallet to tokenize and manage your cards.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Security Banner - SDK Info */}
             <div className="glass-card border-accent/30">
                 <div className="flex items-start gap-4">
                     <div className="w-12 h-12 rounded-full bg-accent/20 flex items-center justify-center flex-shrink-0">
                         <Shield className="w-6 h-6 text-accent" />
                     </div>
                     <div>
-                        <h3 className="font-semibold text-lg">Bank-Grade Security</h3>
+                        <h3 className="font-semibold text-lg">CoFT Compliant • @tychee/sdk Powered</h3>
                         <p className="text-sm text-muted-foreground mt-1">
-                            Your card data is encrypted with AES-256-GCM and stored on-chain. We never store actual card numbers - only tokenized references. RBI CoFT compliant.
+                            Card tokenization uses the Tychee SDK with AES-256-GCM encryption, Luhn validation, and wallet-derived keys. Only you can decrypt your card data.
                         </p>
                     </div>
                 </div>
@@ -60,7 +309,10 @@ export default function CardsPage() {
             {/* Cards List */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {cards.map((card) => (
-                    <div key={card.id} className="card-visual relative group">
+                    <div
+                        key={card.id}
+                        className={`relative group rounded-2xl p-6 bg-gradient-to-br ${getNetworkColor(card.network)} shadow-xl min-h-[200px] flex flex-col justify-between`}
+                    >
                         {/* Card Network Logo */}
                         <div className="absolute top-6 right-6">
                             <div className="text-white/80 text-sm font-semibold uppercase">
@@ -68,29 +320,41 @@ export default function CardsPage() {
                             </div>
                         </div>
 
-                        {/* Card Number */}
-                        <div className="mt-12">
-                            <div className="text-white/60 text-xs mb-2">CARD NUMBER</div>
-                            <div className="text-white text-xl font-mono tracking-wider">
-                                **** **** **** {card.last4}
+                        {/* Encrypted indicator */}
+                        <div className="absolute top-6 left-6">
+                            <div className="flex items-center gap-1 text-white/60 text-xs">
+                                <Lock className="w-3 h-3" />
+                                {card.encryptedSize ? `${card.encryptedSize}B` : "Encrypted"}
                             </div>
                         </div>
 
-                        {/* Card Expiry */}
+                        {/* Card Number */}
+                        <div className="mt-10">
+                            <div className="text-white/60 text-xs mb-2">TOKENIZED CARD</div>
+                            <div className="text-white text-xl font-mono tracking-wider">
+                                •••• •••• •••• {card.last4}
+                            </div>
+                        </div>
+
+                        {/* Card Details */}
                         <div className="mt-6 flex items-center justify-between">
                             <div>
                                 <div className="text-white/60 text-xs mb-1">EXPIRES</div>
                                 <div className="text-white font-mono">{card.expiresAt}</div>
                             </div>
-                            <div className={`px-3 py-1 rounded-full text-xs font-medium ${card.status === 'active' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'
+                            <div className={`px-3 py-1 rounded-full text-xs font-medium ${card.status === 'active' ? 'bg-green-500/20 text-green-300' : 'bg-red-500/20 text-red-300'
                                 }`}>
                                 {card.status}
                             </div>
                         </div>
 
-                        {/* Actions (Nielsen: User Control) */}
+                        {/* Revoke Button */}
                         <div className="absolute bottom-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button className="w-8 h-8 rounded-full bg-white/10 backdrop-blur-sm flex items-center justify-center hover:bg-red-500/20 transition-colors">
+                            <button
+                                onClick={() => handleRevokeCard(card.id)}
+                                className="w-8 h-8 rounded-full bg-white/10 backdrop-blur-sm flex items-center justify-center hover:bg-red-500/40 transition-colors"
+                                title="Revoke Card"
+                            >
                                 <Trash2 className="w-4 h-4 text-white" />
                             </button>
                         </div>
@@ -100,28 +364,50 @@ export default function CardsPage() {
                 {/* Add New Card Placeholder */}
                 <button
                     onClick={() => setShowAddCard(true)}
-                    className="premium-card min-h-[200px] flex flex-col items-center justify-center text-muted-foreground hover:text-foreground border-dashed"
+                    disabled={!isConnected}
+                    className="premium-card min-h-[200px] flex flex-col items-center justify-center text-muted-foreground hover:text-foreground border-dashed disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                     <Plus className="w-12 h-12 mb-4" />
                     <div className="font-semibold">Add New Card</div>
+                    {!isConnected && <div className="text-xs mt-2">Connect wallet first</div>}
                 </button>
             </div>
 
-            {/* Add Card Modal (Nielsen: Clear Feedback) */}
+            {/* Add Card Modal */}
             {showAddCard && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
                     <div className="glass-card max-w-md w-full">
-                        <h2 className="text-2xl font-bold mb-6">Add New Card</h2>
+                        <h2 className="text-2xl font-bold mb-6">Tokenize New Card</h2>
 
-                        <form className="space-y-4">
+                        {error && (
+                            <div className="mb-4 p-3 bg-red-500/20 border border-red-500/30 rounded-lg text-red-400 text-sm flex items-center gap-2">
+                                <AlertCircle className="w-4 h-4" />
+                                {error}
+                            </div>
+                        )}
+
+                        <form onSubmit={handleTokenizeCard} className="space-y-4">
                             <div>
                                 <label className="block text-sm font-medium mb-2">Card Number</label>
                                 <input
                                     type="text"
+                                    value={formData.cardNumber}
+                                    onChange={(e) => handleInputChange("cardNumber", e.target.value)}
                                     placeholder="1234 5678 9012 3456"
                                     className="w-full px-4 py-3 bg-muted border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
                                     maxLength={19}
+                                    required
                                 />
+                                {currentNetwork && (
+                                    <div className="mt-1 text-xs text-muted-foreground flex items-center gap-2">
+                                        <span>Network: <strong className="text-foreground uppercase">{currentNetwork}</strong></span>
+                                        {formData.cardNumber.replace(/\s/g, "").length >= 13 && (
+                                            CardTokenizer.validateCardNumber(formData.cardNumber.replace(/\s/g, ""))
+                                                ? <span className="text-green-400">✓ Valid</span>
+                                                : <span className="text-red-400">✗ Invalid</span>
+                                        )}
+                                    </div>
+                                )}
                             </div>
 
                             <div className="grid grid-cols-2 gap-4">
@@ -129,18 +415,24 @@ export default function CardsPage() {
                                     <label className="block text-sm font-medium mb-2">Expiry</label>
                                     <input
                                         type="text"
+                                        value={formData.expiry}
+                                        onChange={(e) => handleInputChange("expiry", e.target.value)}
                                         placeholder="MM/YY"
-                                        className="w-full px-4 py-3 bg-muted border border-border rounded-lg"
+                                        className="w-full px-4 py-3 bg-muted border border-border rounded-lg focus:ring-2 focus:ring-primary"
                                         maxLength={5}
+                                        required
                                     />
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium mb-2">CVV</label>
                                     <input
                                         type="password"
-                                        placeholder="123"
-                                        className="w-full px-4 py-3 bg-muted border border-border rounded-lg"
-                                        maxLength={3}
+                                        value={formData.cvv}
+                                        onChange={(e) => handleInputChange("cvv", e.target.value)}
+                                        placeholder="•••"
+                                        className="w-full px-4 py-3 bg-muted border border-border rounded-lg focus:ring-2 focus:ring-primary"
+                                        maxLength={4}
+                                        required
                                     />
                                 </div>
                             </div>
@@ -149,27 +441,53 @@ export default function CardsPage() {
                                 <label className="block text-sm font-medium mb-2">Cardholder Name</label>
                                 <input
                                     type="text"
+                                    value={formData.cardholderName}
+                                    onChange={(e) => handleInputChange("cardholderName", e.target.value.toUpperCase())}
                                     placeholder="JOHN DOE"
-                                    className="w-full px-4 py-3 bg-muted border border-border rounded-lg"
+                                    className="w-full px-4 py-3 bg-muted border border-border rounded-lg focus:ring-2 focus:ring-primary"
+                                    required
                                 />
                             </div>
 
                             <div className="flex gap-3 mt-6">
                                 <button
                                     type="button"
-                                    onClick={() => setShowAddCard(false)}
+                                    onClick={() => {
+                                        setShowAddCard(false);
+                                        setError(null);
+                                        setFormData({ cardNumber: "", expiry: "", cvv: "", cardholderName: "" });
+                                    }}
                                     className="flex-1 px-4 py-3 bg-muted rounded-lg font-medium hover:bg-muted/80 transition-colors"
+                                    disabled={isLoading}
                                 >
                                     Cancel
                                 </button>
                                 <button
                                     type="submit"
-                                    className="flex-1 px-4 py-3 bg-gradient-to-r from-primary to-accent rounded-lg text-white font-medium hover:shadow-glow transition-all"
+                                    disabled={isLoading}
+                                    className="flex-1 px-4 py-3 bg-gradient-to-r from-primary to-accent rounded-lg text-white font-medium hover:shadow-glow transition-all flex items-center justify-center gap-2 disabled:opacity-50"
                                 >
-                                    Tokenize Card
+                                    {isLoading ? (
+                                        <>
+                                            <Loader2 className="w-4 h-4 animate-spin" />
+                                            {loadingStep || "Tokenizing..."}
+                                        </>
+                                    ) : (
+                                        <>
+                                            <KeyRound className="w-4 h-4" />
+                                            Tokenize Card
+                                        </>
+                                    )}
                                 </button>
                             </div>
                         </form>
+
+                        <div className="mt-4 p-3 bg-muted/50 rounded-lg border border-border">
+                            <p className="text-xs text-muted-foreground text-center">
+                                <strong className="text-foreground">@tychee/sdk Tokenization:</strong> Your card is validated (Luhn),
+                                encrypted (AES-256-GCM) with your wallet-derived key, and stored on Stellar blockchain.
+                            </p>
+                        </div>
                     </div>
                 </div>
             )}

@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CreditCard, TrendingUp, Gift, Store, Ticket, Users, Wallet } from "lucide-react";
+import { CreditCard, TrendingUp, Gift, Store, Ticket, Users, Wallet, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useWallet } from "@/context/WalletContext";
 
 const navigation = [
     { name: "Cards", href: "/cards", icon: CreditCard },
@@ -16,6 +17,11 @@ const navigation = [
 
 export function Navigation() {
     const pathname = usePathname();
+    const { publicKey, isConnected, isConnecting, connect, disconnect } = useWallet();
+
+    const truncateAddress = (address: string) => {
+        return `${address.slice(0, 4)}...${address.slice(-4)}`;
+    };
 
     return (
         <nav className="sticky top-0 z-40 w-full border-b border-border/40 glass backdrop-blur-lg">
@@ -50,10 +56,29 @@ export function Navigation() {
                         })}
                     </div>
 
-                    <button className="px-4 py-2 bg-gradient-to-r from-primary to-accent rounded-full text-white font-medium hover:shadow-glow transition-all flex items-center gap-2">
-                        <Wallet className="w-4 h-4" />
-                        Connect Wallet
-                    </button>
+                    {isConnected ? (
+                        <div className="flex items-center gap-2">
+                            <span className="px-3 py-1.5 bg-muted rounded-full text-sm font-mono">
+                                {truncateAddress(publicKey!)}
+                            </span>
+                            <button
+                                onClick={disconnect}
+                                className="p-2 text-muted-foreground hover:text-foreground transition-colors"
+                                title="Disconnect Wallet"
+                            >
+                                <LogOut className="w-4 h-4" />
+                            </button>
+                        </div>
+                    ) : (
+                        <button
+                            onClick={connect}
+                            disabled={isConnecting}
+                            className="px-4 py-2 bg-gradient-to-r from-primary to-accent rounded-full text-white font-medium hover:shadow-glow transition-all flex items-center gap-2 disabled:opacity-50"
+                        >
+                            <Wallet className="w-4 h-4" />
+                            {isConnecting ? "Connecting..." : "Connect Wallet"}
+                        </button>
+                    )}
                 </div>
 
                 {/* Mobile Navigation */}
