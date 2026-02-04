@@ -2,7 +2,7 @@
 
 > **Secure card tokenization SDK for Stellar with an example rewards dApp**
 
-## 🌟 Overview
+##  Overview
 
 Tychee is a comprehensive card tokenization SDK and rewards platform built on Stellar's Soroban smart contracts. It enables regulations-compliant tokenization of debit/credit cards while providing a gamified rewards experience for users and merchants.
 
