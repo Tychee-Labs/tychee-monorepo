@@ -8,15 +8,15 @@ Tychee is a comprehensive card tokenization SDK and rewards platform built on St
 
 ### Key Features
 
-- 🔐 **Regulations-Compliant Card Tokenization** - AES-256-GCM encryption stored on-chain
-- ⛓️ **Stellar Blockchain** - Secure, fast, and low-cost transactions
-- 🎁 **Gamified Rewards** - Premium points system with tier progression
-- 🏪 **Merchant Discovery** - Hyperlocal deals and merchant discovery
-- 🎫 **Blockchain Vouchers** - NFT-like vouchers that can be traded
-- 📊 **AI-Powered Insights** - Spending analytics and recommendations
-- 🔑 **Account Abstraction** - Optional gasless transactions and meta-tx support
+-  **Regulations-Compliant Card Tokenization** - AES-256-GCM encryption stored on-chain
+-  **Stellar Blockchain** - Secure, fast, and low-cost transactions
+-  **Gamified Rewards** - Premium points system with tier progression
+-  **Merchant Discovery** - Hyperlocal deals and merchant discovery
+-  **Blockchain Vouchers** - NFT-like vouchers that can be traded
+-  **AI-Powered Insights** - Spending analytics and recommendations
+-  **Account Abstraction** - Optional gasless transactions and meta-tx support
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 tychee/
@@ -43,7 +43,7 @@ tychee/
 └── prisma/                    # Database schema
 ```
 
-## 🚀 Quick Start
+##  Quick Start
 
 ### Prerequisites
 
@@ -222,7 +222,7 @@ All API routes are serverless functions deployed on Vercel:
 
 See [docs/API.md](docs/API.md) for full API documentation.
 
-## 🎯 Nielsen's Usability Heuristics
+##  Nielsen's Usability Heuristics
 
 The frontend implements Jakob Nielsen's usability principles:
 
@@ -264,7 +264,7 @@ vercel --prod
 3. Deploy contracts to mainnet
 4. Update frontend environment variables
 
-## 🧪 Testing
+##  Testing
 
 ```bash
 # SDK tests
@@ -282,17 +282,17 @@ npm run test:e2e
 npm run test:api
 ```
 
-## 📚 Documentation
+## Documentation
 
 - [SDK Documentation](docs/SDK.md)
 - [API Reference](docs/API.md)
 - [Deployment Guide](docs/DEPLOYMENT.md)
 
-## 🤝 Contributing
+##  Contributing
 
 Contributions welcome! Please read our [contributing guidelines](.github/CONTRIBUTING.md). All contributors must sign our Contributor License Agreement (CLA).
 
-## 📄 License
+## License
 
 **Business Source License 1.1**
 
